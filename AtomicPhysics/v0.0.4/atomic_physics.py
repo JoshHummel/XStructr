@@ -131,6 +131,8 @@ class Vector:
 
 class Particle:
     
+    particles = []
+    
     def __init__(self, mass, radius, charge, pos, vel, acc):
         self.mass = mass
         self.radius = radius
@@ -139,6 +141,7 @@ class Particle:
         self.acc = acc
         self.charge = charge
         self.net_force = Vector(0,0,0)
+        Particle.particles.append(self)
         
     def distanceTo(self, other):
         return math.sqrt((self.pos.x - other.pos.x)**2 + 
@@ -185,15 +188,15 @@ def update(particles, surface, offx, offy, dt):
         i.acc = new_acc
         
         pygame.draw.circle(surface, 'blue', 
-                    (i.pos.x + offx, offy - i.pos.y),
-                    i.radius)
+                    (i.pos.x*10e9 + offx, offy - i.pos.y*10e9),
+                    i.radius*10e9)
 
         
 def calc_forces(particles, dt):
     #calculate magnitude of force
     #use LJ Potential in future
     
-    epsilon = 997
+    epsilon = 0.997
     
     
     for i in range(len(particles)):
@@ -202,24 +205,60 @@ def calc_forces(particles, dt):
             if i == j:
                 continue
             sigma = (particles[i].radius + particles[j].radius)/2
+            
+            
+            #add Lennard-Jones potential force
+            
             force = (24*epsilon/(particles[i].distanceTo(particles[j])**2))*(2*(sigma/particles[i].distanceTo(particles[j]))**12
                                   - (sigma/particles[i].distanceTo(particles[j]))**6)
+    
+            
+            #print(particles[i].vel)
+            
+            #add Coulomb force            
+            if particles[i].distanceTo(particles[j]) > 2*sigma:
+                force += 8.99 * 10e9 * (particles[i].charge * particles[j].charge 
+                                / ((particles[i].distanceTo(particles[j]))**2))
+                   
+            print(force/particles[i].mass)
+    
             #get distance vector to other charged particle
             dist = particles[i].vectorDist(particles[j])
             fx = force * math.cos(dist.phi)
             fy = force * math.sin(dist.phi)
             fz = force * math.cos(dist.theta)
             netf = netf + Vector(fx, fy, fz)
+            #print(particles[i].distanceTo(particles[j]))
             
         
         particles[i].net_force = netf
-        print(netf)
     
+    
+class Atom(Particle):
+    
+    atoms = []
+    
+    def __init__(self, charge, radius, Z=1, istnum=1, pos=Vector(0,0,0), vel=Vector(0,0,0), acc=Vector(0,0,0)):
+        
+        mass = ((Z * PROTON_MASS) + ((istnum - Z) * NEUTRON_MASS)
+                + ((Z - charge) * ELECTRON_MASS))
+        
+        #FIXME: calculate radius of atom based on bonds
+        #radius = 1.23 * 10e-10
+        
+        Particle.__init__(self, mass, radius, charge*ELECTRON_CHARGE, pos, vel, acc)
+        self.Z = Z
+        self.istnum = istnum
+        
+        Atom.atoms.append(self)
+        Particle.particles.append(self)
+        
+
     
 def main():
     
-    particle1 = Particle(1, 34, 0, Vector(0, 0, 0), Vector(0,0,0), Vector(0,0,0))
-    particle2 = Particle(1, 34, 0, Vector(200, 200, 0), Vector(-50,-50,0), Vector(0,0,0))
+    particle1 = Atom(1, 113*10e-12, 11, 23, Vector(-7*10e-9, 0, 0))
+    particle2 = Atom(-1, 181*10e-12, 9, 18, Vector(7*10e-9, 0, 0))
     #particle3 = Particle(0.0001, 34, -0.0001, Vector(-300, -15, 0), Vector(50,0,0), Vector(0,0,0))
     #particle4 = Particle(0.0001, 34, -0.0001, Vector(300, 15, 0), Vector(-50,0,0), Vector(0,0,0))
     
