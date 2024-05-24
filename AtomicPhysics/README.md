@@ -10,7 +10,11 @@ Version History and all files for the atomic physics engine
 - Collision functionality for particles (inconsistent)
 - Corrected force application function
 
---- v0.0.3 (in progress) ---
+--- v0.0.3 (05/18/24) ---
 - Updates positions/velocities with Verlet Integration
-- Estimating forces/potentials of atoms with Lennard Jones Potential
 - Properties of atoms?
+- Fixed collision functionality
+
+--- v0.0.4 (in progress) ---
+- Estimating forces/potentials of atoms with Lennard Jones Potential
+- Running into limitations with the real-time calculation of forces
