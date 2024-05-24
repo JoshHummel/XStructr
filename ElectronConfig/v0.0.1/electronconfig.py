@@ -76,5 +76,5 @@ class ElectronConfig:
         return string[0:-1]
 
 if __name__ == '__main__':
-    config = ElectronConfig(85)
+    config = ElectronConfig(9)
     print(config.approx_atomic_radius())

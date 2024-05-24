@@ -6,6 +6,7 @@ Created on Tue May 14 21:51:36 2024
 """
 import math
 import pygame
+import numpy as np
 
 ELECTRON_MASS = 9.1093837015e-31
 ELECTRON_CHARGE = -1.602176634e-19
@@ -23,6 +24,7 @@ BOLTZMANN_CONST = 1.380649e-23
 class Vector:
     
     def __init__(self, x=None, y=None, z=None, r=None, phi=None, theta=None):
+        
         if x is None and y is None and z is None:
             self.phi = phi
             self.theta = theta
@@ -127,7 +129,7 @@ class Vector:
             return Vector(x, y, z)
         
     def __str__(self):
-        return f"X: {self.x} Y: {self.y} Z: {self.z}"
+        return f"{self.x},{self.y},{self.z}"
 
 class Particle:
     
@@ -196,7 +198,7 @@ def calc_forces(particles, dt):
     #calculate magnitude of force
     #use LJ Potential in future
     
-    epsilon = 0.997
+    epsilon = 10e-10
     
     
     for i in range(len(particles)):
@@ -204,21 +206,22 @@ def calc_forces(particles, dt):
         for j in range(len(particles)):
             if i == j:
                 continue
-            sigma = (particles[i].radius + particles[j].radius)/2
+            radius = (particles[i].radius + particles[j].radius)/2
+            sigma = radius * np.e ** (-(1/6)*np.log(2))
             
             
             #add Lennard-Jones potential force
             
-            force = (24*epsilon/(particles[i].distanceTo(particles[j])**2))*(2*(sigma/particles[i].distanceTo(particles[j]))**12
-                                  - (sigma/particles[i].distanceTo(particles[j]))**6)
+            force = (24*epsilon/(particles[i].distanceTo(particles[j])**2))*(2*(sigma/particles[i].distanceTo(particles[j]))**11
+                                  - (sigma/particles[i].distanceTo(particles[j]))**5)
     
             
             #print(particles[i].vel)
             
             #add Coulomb force            
-            if particles[i].distanceTo(particles[j]) > 2*sigma:
+            '''if particles[i].distanceTo(particles[j]) > 2*sigma:
                 force += 8.99 * 10e9 * (particles[i].charge * particles[j].charge 
-                                / ((particles[i].distanceTo(particles[j]))**2))
+                                / ((particles[i].distanceTo(particles[j]))**2))'''
                    
             print(force/particles[i].mass)
     
@@ -257,8 +260,8 @@ class Atom(Particle):
     
 def main():
     
-    particle1 = Atom(1, 113*10e-12, 11, 23, Vector(-7*10e-9, 0, 0))
-    particle2 = Atom(-1, 181*10e-12, 9, 18, Vector(7*10e-9, 0, 0))
+    particle1 = Atom(1, 113*10e-12, 11, 23, Vector(-2*10e-10, 0, 0))
+    particle2 = Atom(-1, 181*10e-12, 9, 18, Vector(2*10e-10, 0, 0))
     #particle3 = Particle(0.0001, 34, -0.0001, Vector(-300, -15, 0), Vector(50,0,0), Vector(0,0,0))
     #particle4 = Particle(0.0001, 34, -0.0001, Vector(300, 15, 0), Vector(-50,0,0), Vector(0,0,0))
     
