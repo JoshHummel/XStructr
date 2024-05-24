@@ -17,7 +17,7 @@ import sys
 def calc_forces(particles, dt, t):
     #pre-calculate forces, positions and save to file
     
-    epsilon = 112
+    epsilon = 10e-45
     entropy = 0.9
     
     with open('config.txt', 'w') as file:
@@ -56,14 +56,16 @@ def calc_forces(particles, dt, t):
             line = ''
             
             for i in particles:
-                new_pos = i.pos + i.vel * dt + i.acc*0.5*dt*dt
+                
                 new_acc = i.net_force / i.mass
-                new_vel = i.vel + (i.acc + new_acc)*0.5*dt
-                 
-                i.pos = new_pos
-                i.vel = new_vel
+                new_vel = i.vel + (i.acc + new_acc)*dt*0.5
+                new_pos = i.pos + (i.vel + new_vel)*dt*0.5
+                
                 i.acc = new_acc
-                line += f'{i.pos},'
+                i.vel = new_vel
+                i.pos = new_pos
+                
+                line += f'{new_pos},'
                 
             file.write(f'{line[:-1]}\n')
             sys.stdout.write(f'\rCalculating: {(100*time/(t/dt)):.2f}%')
@@ -121,13 +123,13 @@ def main():
     else:
         main()
     
-particle1 = Atom(-1, 50*10e-12, 9, 18, Vector(-5*10e-10, 0, 0))
-particle2 = Atom(-1, 50*10e-12, 9, 18, Vector(5*10e-10, 0, 0))
+particle1 = Atom(1, 113*10e-12, 11, 23, Vector(-5*10e-10, 0, 0))
+particle2 = Atom(-1, 181*10e-12, 9, 18, Vector(5*10e-10, 0, 0))
 #particle3 = Particle(0.0001, 34, -0.0001, Vector(-300, -15, 0), Vector(50,0,0), Vector(0,0,0))
 #particle4 = Particle(0.0001, 34, -0.0001, Vector(300, 15, 0), Vector(-50,0,0), Vector(0,0,0))
 
 particles = [particle1, particle2]
-calc_forces(particles, 0.00001, 2)
+#calc_forces(particles, 0.00001, 2)
 
 pygame.init()
 size = width, height = (1920, 950)
@@ -138,7 +140,7 @@ offy = size[1] / 2
 
 data = np.genfromtxt('config.txt', delimiter=',')
 
-dt = 0.1
+dt = 0.0001
 
 main()
             
