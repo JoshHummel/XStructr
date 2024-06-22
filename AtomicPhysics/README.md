@@ -20,8 +20,8 @@ Version History and all files for the atomic physics engine
 - Running into limitations with the real-time calculation of forces
 - Script for pre-calculating positions of atoms to make simulation more accurate
 
---- v0.0.5 (in progress) ---
-- Use numpy to calculate potentials between particles and origin as matrix
-- Fixing overcorrection in Pauli repulsion term of LJ potential
--  
-
+--- v0.0.6 (in progress) ---
+- Pre-calculate LJ potentials between particles using C (faster than Python)
+- Fix overcorrection in Pauli repulsion term of LJ potential
+- Config file for better declaration of particles in pre-calculation and simulation
+- 
