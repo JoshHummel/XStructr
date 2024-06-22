@@ -75,7 +75,7 @@ typedef struct Particle {
     Vector pos;
     Vector vel;
     Vector acc;
-    Vector netpot;
+    Vector netf;
 }Particle;
 
 // Particle functions:
@@ -128,7 +128,7 @@ double get_theta(double x, double y, double z) {
 }
 
 
-int calculate_forces(char* filename, Particle particles[], int arr_len, double dt, int t) {
+int calculate_forces(char* filename, Particle particles[], int arr_len, double dt, double t) {
     FILE* file = fopen(filename, "w");
     if (file == NULL) {
         printf("File could not be opened for writing.\n");
@@ -136,12 +136,12 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
     }
 
     int time = 0;
-    int sim_len = t / dt;
+    int sim_len = (int)(t / dt);
     int write_error;
-    Vector netV, rvec, new_vel, new_pos;
+    Vector netF, rvec, new_acc, new_vel, new_pos;
     double r, radius, sigma;
-    double epsilon = 10e14;
-    double V, Vx, Vy, Vz;
+    double epsilon = 10e50;
+    double F, Fx, Fy, Fz;
 
     for (; time <= sim_len; time++) {
         write_error = fprintf(file, "%lf,", time * dt);
@@ -151,7 +151,7 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
         }
 
         for (int i = 0; i < arr_len; i++) {
-            netV.x = 0.0, netV.y = 0.0, netV.z = 0.0;
+            netF.x = 0.0, netF.y = 0.0, netF.z = 0.0;
             write_error = fprintf(file, "%e,%e,%e,", particles[i].pos.x, particles[i].pos.y, particles[i].pos.z);
             if (write_error < 1) {
                 printf("Write error encountered.\n");
@@ -167,25 +167,27 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
                 radius = (particles[i].radius + particles[j].radius) / 2;
                 sigma = radius * 0.8908987181403393;
 
-                V = (4 * epsilon / (pow(r, 2))) * (pow((sigma/r), 12) - pow((sigma/r), 6));
+                F = (24 * epsilon / (pow(r, 2))) * (2*pow((sigma/r), 11) - pow((sigma/r), 5));
 
                 rvec = vectorDist(particles[i], particles[j]);
 
-                Vx = V * cos(get_phi(rvec.x, rvec.y));
-                Vy = V * sin(get_phi(rvec.x, rvec.y));
-                Vz = V * cos(get_theta(rvec.x, rvec.y, rvec.z));
+                Fx = F * cos(get_phi(rvec.x, rvec.y));
+                Fy = F * sin(get_phi(rvec.x, rvec.y));
+                Fz = F * cos(get_theta(rvec.x, rvec.y, rvec.z));
 
-                netV.x += Vx;
-                netV.y += Vy;
-                netV.z += Vz;
+                netF.x += Fx;
+                netF.y += Fy;
+                netF.z += Fz;
             }
-            particles[i].netpot = netV;
+            particles[i].netf = netF;
         }
 
         for (int k = 0; k < arr_len; k++) {
-            new_vel = vec_scale_div(particles[k].netpot, particles[k].mass);
+            new_acc = vec_scale_div(particles[k].netf, particles[k].mass);
+            new_vel = vec_add(particles[k].vel, vec_scale_mul(vec_add(particles[k].acc, new_acc), dt * 0.5));
             new_pos = vec_add(particles[k].pos, vec_scale_mul(vec_add(particles[k].vel, new_vel), dt * 0.5));
 
+            particles[k].acc = new_acc;
             particles[k].vel = new_vel;
             particles[k].pos = new_pos;
         }
@@ -195,7 +197,8 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
         printf("Write error encountered.\n");
         return -1;
     }
-    fprintf(stdout, "\rCalculating: %.2f%%", (100 * time / (t/dt)));
+    // FIXME: can't use decimal time for simulation length
+    fprintf(stdout, "\rCalculating: %.2f%%", ((float)(100 * time) / (t/dt)));
     fflush(stdout);
     }
     fclose(file);

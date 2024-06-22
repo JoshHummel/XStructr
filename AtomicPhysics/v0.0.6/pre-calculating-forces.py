@@ -125,8 +125,8 @@ def main(dt):
             z = row[2 + (3*c)]
             position = Vector(x, y, z)
             pygame.draw.circle(screen, 'blue', 
-            (position.x + offx, offy - position.y),
-            particle.radius)
+            (position.x*10e9 + offx, offy - position.y*10e9),
+            particle.radius*10e9)
             
         pygame.display.flip()
         
@@ -143,12 +143,12 @@ def main(dt):
     else:
         main(dt)
     
-particle1 = Atom(1, 181, 11, 23, Vector(-500, 0, 0))
-particle2 = Atom(-1, 150, 9, 13, Vector(500, 0, 0))
-particle3 = Atom(1, 160, 11, 15, Vector(0, 300, 0))
-particle4 = Atom(-1, 120, 20, 40, Vector(0, -300, 0))
+particle1 = Atom(1, 138e-12, 19, 39)
+particle2 = Atom(-1, 181e-12, 17, 35)
+#particle3 = Atom(1, 160, 11, 15, Vector(0, 300, 0))
+#particle4 = Atom(-1, 120, 20, 40, Vector(0, -300, 0))
 
-particles = [particle1, particle2, particle3, particle4]
+particles = [particle1, particle2]
 start = time.perf_counter()
 # Usage: ./calculate.exe <dt> <time> <# of particles>
 #os.system("./calculate.exe")
@@ -167,7 +167,7 @@ font = pygame.font.Font('freesansbold.ttf', 24)
 
 data = np.genfromtxt('data.txt', delimiter=',')
 
-dt = 0.01
+dt = 0.0001
 
 main(dt)
             
