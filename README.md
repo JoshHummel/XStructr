@@ -7,7 +7,9 @@ and concepts from chemistry, physics, and materials science.
 
 [x] Complete physics engine of particles in Python <br />
 [x] Complete physics calculation in C <br />
-___ Simulate in 3D <br />
+___ Implement better bonding with Molecular Orbital Theory
+___ Add GUI for better customization of simulations
+___ Simulate in 3D and <br />
 ___ Train ML model to recognize and predict properties of atoms <br />
 ___ Complete physics engine of materials and objects <br />
 ___ Train ML model to predict properties of compounds <br />
