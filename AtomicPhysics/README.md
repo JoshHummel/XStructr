@@ -16,13 +16,12 @@ Version History and all files for the atomic physics engine
 - Fixed collision functionality
 
 --- v0.0.4 (05/23/24) ---
-- Estimating forces/potentials of atoms with Lennard Jones Potential
+- Estimating Van der Waals forces/potentials of noble gases with Lennard Jones Potential
 - Running into limitations with the real-time calculation of forces
 - Script for pre-calculating positions of atoms to make simulation more accurate
 
 --- v0.0.6 (9/13/24) ---
-- Pre-calculate LJ potentials between particles using C (faster than Python)
-- Fix overcorrection in Pauli repulsion term of LJ potential
+- Pre-calculate particle positions using C (faster than Python)
 - Config file for better declaration of particles in pre-calculation and simulation
 - First implementation of ionic bonding
 
