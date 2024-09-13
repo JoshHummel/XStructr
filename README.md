@@ -9,7 +9,7 @@ and concepts from chemistry, physics, and materials science.
 [x] Complete physics calculation in C <br />
 ___ Implement better bonding with Molecular Orbital Theory <br />
 ___ Add GUI for better customization of simulations <br />
-___ Simulate in 3D and <br />
+___ Simulate in 3D <br />
 ___ Train ML model to recognize and predict properties of atoms <br />
 ___ Complete physics engine of materials and objects <br />
 ___ Train ML model to predict properties of compounds <br />
