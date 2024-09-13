@@ -3,6 +3,8 @@
 #include <stdlib.h>
 
 const double PI = 3.141592653589793238463;
+const double ELEC_CONST = 8.99 * 10e9;
+const double ELEC_CHRG = 1.602176634 * 10e-19;
 
 typedef struct Vector {
     double x;
@@ -65,6 +67,25 @@ Vector vec_scale_mul(Vector one, double two) {
     return result;
 }
 
+double vec_len(Vector one) {
+    return pow(pow(one.x, 2) + pow(one.y, 2) + pow(one.z, 2), 0.5);
+}
+
+Vector vec_norm(Vector one) {
+    Vector result;
+    double length = vec_len(one);
+    result = vec_scale_div(one, length);
+    return result;
+}
+
+Vector vec_abs(Vector one) {
+    Vector result;
+    result.x = fabs(one.x);
+    result.y = fabs(one.y);
+    result.z = fabs(one.z);
+    return result;
+}
+
 void print_vec(Vector one) {
     printf("(%e, %e, %e)", one.x, one.y, one.z);
 }
@@ -72,10 +93,12 @@ void print_vec(Vector one) {
 typedef struct Particle {
     double mass;
     double radius;
+    double charge;
     Vector pos;
     Vector vel;
     Vector acc;
     Vector netf;
+    Vector min_e_loc;
 }Particle;
 
 // Particle functions:
@@ -93,6 +116,15 @@ Vector vectorDist(Particle one, Particle two) {
     result.y = yr;
     result.z = zr;
     return result;
+}
+
+int isClose(Vector one, Vector two, double tol) {
+    if (fabs(one.x - two.x) <= tol && fabs(one.y - two.y) <= tol && fabs(one.z - two.z) <= tol) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }
 
 /* Catch zero div issues
@@ -139,19 +171,15 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
     int sim_len = (int)(t / dt);
     int write_error;
     Vector netF, rvec, new_acc, new_vel, new_pos;
-    double r, radius, sigma;
-    double epsilon = 10e50;
+    double r, radius, sigma, A=0.9999999999999999, rho = 0.0000894873938456;
+    double epsilon = 1.6567788 * 10e-21;
     double F, Fx, Fy, Fz;
 
     for (; time <= sim_len; time++) {
-        write_error = fprintf(file, "%lf,", time * dt);
-        if (write_error < 1) {
-            printf("Write error encountered.\n");
-            return -1;
-        }
 
         for (int i = 0; i < arr_len; i++) {
             netF.x = 0.0, netF.y = 0.0, netF.z = 0.0;
+            particles[i].min_e_loc = vec_scale_mul(netF, 0);
             write_error = fprintf(file, "%e,%e,%e,", particles[i].pos.x, particles[i].pos.y, particles[i].pos.z);
             if (write_error < 1) {
                 printf("Write error encountered.\n");
@@ -162,12 +190,29 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
                 if (i == j) {
                     continue;
                 }
-                
+
                 r = distanceTo(particles[i], particles[j]);
+
+                // compensate for particle "teleporting" past lowest energy
+                Vector curr_valley = vec_add(particles[j].pos, vec_scale_mul(vec_norm(vectorDist(particles[i], particles[j])), 2 * sigma));
+                particles[i].min_e_loc = vec_scale_div(vec_add(particles[i].min_e_loc, curr_valley), arr_len-1);
+
+                if (fabs(r - (particles[i].radius + particles[j].radius)) <= 5e-11 && r > (particles[i].radius + particles[j].radius)) {
+                    //particles[i].vel = vec_scale_mul(netF, 0);
+                    //particles[j].vel = vec_scale_mul(netF, 0);
+                    continue;
+                }
+                
                 radius = (particles[i].radius + particles[j].radius) / 2;
                 sigma = radius * 0.8908987181403393;
 
-                F = (24 * epsilon / (pow(r, 2))) * (2*pow((sigma/r), 11) - pow((sigma/r), 5));
+                // ionic interactions
+                if (particles[j].charge != 0.0 && particles[i].charge != 0.0) {
+                    F = ELEC_CONST * (particles[i].charge * particles[j].charge) * ((pow(r, -2))) - (A/rho) * exp((sigma-r)/rho);
+                }
+                else { // Van Der Waals interactions
+                    F = (24 * epsilon / (pow(r, 2))) * (2*pow((sigma/r), 11) - pow((sigma/r), 5));
+                }
 
                 rvec = vectorDist(particles[i], particles[j]);
 
@@ -178,28 +223,38 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
                 netF.x += Fx;
                 netF.y += Fy;
                 netF.z += Fz;
+
             }
             particles[i].netf = netF;
         }
 
-        for (int k = 0; k < arr_len; k++) {
+        //printf("(%lf, %lf, %lf)\n", avg_lowest_e.x, avg_lowest_e.y, avg_lowest_e.z);
+
+        for (int k = 0; k < arr_len; k++) {            
+
+            new_pos = vec_add(vec_add(particles[k].pos, vec_scale_mul(particles[k].vel, dt)), vec_scale_mul(particles[k].acc, dt * dt * 0.5));
             new_acc = vec_scale_div(particles[k].netf, particles[k].mass);
             new_vel = vec_add(particles[k].vel, vec_scale_mul(vec_add(particles[k].acc, new_acc), dt * 0.5));
-            new_pos = vec_add(particles[k].pos, vec_scale_mul(vec_add(particles[k].vel, new_vel), dt * 0.5));
 
+            // vec_len(vec_abs(vec_add(new_pos, vec_scale_mul(particles[k].pos, -1)))) > vec_len(vec_abs(vec_add(avg_lowest_e, vec_scale_mul(particles[k].pos, -1))))
+
+            if (isClose(particles[k].pos, particles[k].min_e_loc, 5e-11)) {
+                new_pos = particles[k].min_e_loc;
+                new_vel = vec_scale_mul(new_vel, 0);
+                new_acc = vec_scale_mul(new_vel, 0);
+            }
+            
             particles[k].acc = new_acc;
             particles[k].vel = new_vel;
             particles[k].pos = new_pos;
+
         }
 
     write_error = fprintf(file, "\n");
     if (write_error < 1) {
         printf("Write error encountered.\n");
         return -1;
-    }
-    // FIXME: can't use decimal time for simulation length
-    fprintf(stdout, "\rCalculating: %.2f%%", ((float)(100 * time) / (t/dt)));
-    fflush(stdout);
+        }
     }
     fclose(file);
     return 0;
@@ -223,6 +278,7 @@ int main(int argc, char* argv[]) {
     Vector acc;
     double mass;
     double radius;
+    double charge;
 
     FILE* cfile = fopen("config.txt", "r");
     if (cfile == NULL) {
@@ -233,12 +289,14 @@ int main(int argc, char* argv[]) {
     Particle* arr = malloc(num_part * sizeof(Particle));
 
     int i = 0;
-    while (fscanf(cfile, "%lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf ", &mass, &radius, &(pos.x), &(pos.y), &(pos.z), &(vel.x), &(vel.y), &(vel.z), &(acc.x), &(acc.y), &(acc.z)) == 11) {
+    while (fscanf(cfile, "%lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf\n", &mass, &radius, &charge, &(pos.x), &(pos.y), &(pos.z), &(vel.x), &(vel.y), &(vel.z), &(acc.x), &(acc.y), &(acc.z)) == 12) {
         arr[i].mass = mass;
         arr[i].radius = radius;
+        arr[i].charge = charge;
         arr[i].pos = pos;
         arr[i].vel = vel;
         arr[i].acc = acc;
+        // fprintf(stdout, "Particle %d: (Mass: %lf), (Radius: %lf), (Charge: %d), (Pos: [%lf, %lf, %lf])\n", i, arr[i].mass, arr[i].radius, arr[i].charge, arr[i].pos.x, arr[i].pos.y, arr[i].pos.z);
         i++;
     }
 

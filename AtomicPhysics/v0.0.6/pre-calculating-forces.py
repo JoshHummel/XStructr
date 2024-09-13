@@ -12,89 +12,21 @@ from atomic_physics import Atom
 import pygame
 import time
 import sys
-import os
+import subprocess
+import random
 
-def get_potential(self, other):
-    
-    '''
-    Calculates potential function between two particles
-    params:
-        self, other: Atom/Particle objects
-        
-    returns:
-        V: numpy array containing values of potential function
-           at varying radii
-    
-    '''
-    
-    r = self.distanceTo(other)
-    
-    radius = (self.radius + other.radius)/2
-    #sigma = radius * np.e ** (-(1/6)*np.log(2))
-    sigma = radius * 0.8908987181403393
-    epsilon = 10e-45
-    
-    V = (4*epsilon/(r**2))*((sigma/r)**12
-                          - (sigma/r)**6)
-    
-    rvec = self.vectorDist(other)
-    Vx = V * np.cos(rvec.phi)
-    Vy = V * np.sin(rvec.phi)
-    Vz = V * np.cos(rvec.theta)
-    
-    return Vector(Vx, Vy, Vz)
-
-
-
-def calc_forces(particles, dt, t):
-    #pre-calculate forces, positions and save to file
-    
-    precision = int(np.log10(dt))
-    
-    with open('config.txt', 'w') as file:
-        
-        for time in range(1, int((t/dt)+1)):
-
-            file.write(f'{round(time*dt, precision)},')
+def write_config(particles):
+    with open("config.txt", "w") as file:
+        for p in particles:
+            s = f"{p.mass}, {p.radius}, {p.charge}, "
+            s += f"{p.pos.x}, {p.pos.y}, {p.pos.z}, "
+            s += f"{p.vel.x}, {p.vel.y}, {p.vel.z}, "
+            s += f"{p.acc.x}, {p.acc.y}, {p.acc.z}\n"
+            file.write(s)
             
-            line = ''
-            for i in particles:
-                netV = Vector(0,0,0)
-                line += f'{i.pos},'
-                for j in particles:
-                    if i is j:
-                        continue
-                    
-                    potential = get_potential(i, j)
-                    
-                    netV = netV + potential
-                    
-                i.netf = netV
-                
-            for k in particles:
-                
-                new_vel = k.netf / k.mass
-                new_pos = k.pos + (k.vel + new_vel)*dt*0.5
-                
-                k.vel = new_vel
-                k.pos = new_pos
-                
-            file.write(f'{line[:-1]}\n')
-            sys.stdout.write(f'\rCalculating: {(100*time/(t/dt)):.2f}%')
-            sys.stdout.flush()
-        sys.stdout.write('\n')
-    
-                
-def main(dt):
-    
-    '''
-    particle1 = Atom(1, 113*10e-12, 11, 23, Vector(-5*10e-10, 0, 0))
-    particle2 = Atom(-1, 181*10e-12, 9, 18, Vector(5*10e-10, 0, 0))
-    #particle3 = Atom(1, 113*10e-12, 11, 23, Vector(0, -5*10e-10, 0))
-    #particle4 = Atom(-1, 181*10e-12, 9, 18, Vector(0, 5*10e-10, 0))
+        
+def main(dt, length, cdt, scale):
 
-    particles = [particle1, particle2]
-    '''
     init_time = time.perf_counter()
     
     quitting = False
@@ -111,13 +43,13 @@ def main(dt):
         
         t = int((time.perf_counter() - init_time)/dt)
         
-        text = font.render(f'{(t*dt):.04f} s', False, (0,0,0))
+        text = font.render(f'{(t*cdt*10e9):.04f} ns', False, (0,0,0))
         screen.blit(text, (0,0))
         
-        try:
-            row = data[t, 1:]
+        try:  # TODO: fix so no errors are thrown
+            row = data[t, :]
         except:
-            main(dt)
+            init_time = time.perf_counter()
         
         for c, particle in enumerate(particles):
             x = row[3*c]
@@ -125,8 +57,8 @@ def main(dt):
             z = row[2 + (3*c)]
             position = Vector(x, y, z)
             pygame.draw.circle(screen, 'blue', 
-            (position.x*10e9 + offx, offy - position.y*10e9),
-            particle.radius*10e9)
+                (position.x*scale + offx, offy - position.y*scale),
+                particle.radius*scale)
             
         pygame.display.flip()
         
@@ -136,38 +68,48 @@ def main(dt):
             quitting=True
             break
         elif keys[pygame.K_SPACE]:
-            main(dt)
+            init_time = time.perf_counter()
         
     if quitting:
         pygame.quit()
     else:
-        main(dt)
+        init_time = time.perf_counter()
+        
+
+if __name__ == "__main__":
     
-particle1 = Atom(1, 138e-12, 19, 39)
-particle2 = Atom(-1, 181e-12, 17, 35)
-#particle3 = Atom(1, 160, 11, 15, Vector(0, 300, 0))
-#particle4 = Atom(-1, 120, 20, 40, Vector(0, -300, 0))
+    particle1 = Atom(-1, 99e-12, 17, 35, Vector(-2e-9, 0, 0))
+    particle2 = Atom(1, 154e-12, 11, 23, Vector(2e-9, 0, 0))
+    #particle1 = Atom(0, 188e-12, 18, 40, Vector(-2e-9, 0, 0))
+    #particle2 = Atom(0, 188e-12, 18, 40, Vector(2e-9, 0, 0))
+    #particle3 = Atom(1, 160, 11, 15, Vector(0, 300, 0))
+    #particle4 = Atom(-1, 120, 20, 40, Vector(0, -300, 0))
+    
+    calc_dt = 1e-16
+    calc_len = 1e-11
+    sim_dt = 1e-4
+    scale = 1e11
 
-particles = [particle1, particle2]
-start = time.perf_counter()
-# Usage: ./calculate.exe <dt> <time> <# of particles>
-#os.system("./calculate.exe")
-elapsed = time.perf_counter() - start
-mins, sec = divmod(elapsed, 60)
-hr, mon = divmod(mins, 60)
-print(f'\nCompleted in {int(hr)}:{int(mins)}:{sec}.')
+    particles = [particle1, particle2]
+    write_config(particles)
+    start = time.perf_counter()
+    
+    # Usage: ./calculate.exe <dt> <time> <# of particles>
+    subprocess.check_call(f"./calculate.exe {calc_dt} {calc_len} {len(particles)}")
+    
+    elapsed = time.perf_counter() - start
+    mins, sec = divmod(elapsed, 60)
+    hr, mon = divmod(mins, 60)
+    print(f'\nCompleted in {int(hr)}:{int(mins)}:{sec:.3f}.')
+    
+    data = np.genfromtxt('data.txt', delimiter=',');
 
-pygame.init()
-size = width, height = (1920, 950)
-screen = pygame.display.set_mode(size)
-clock = pygame.time.Clock()
-offx = width / 2
-offy = height / 2
-font = pygame.font.Font('freesansbold.ttf', 24)
+    pygame.init()
+    size = width, height = (1920, 950)
+    screen = pygame.display.set_mode(size)
+    clock = pygame.time.Clock()
+    offx = width / 2
+    offy = height / 2
+    font = pygame.font.Font('freesansbold.ttf', 24)
 
-data = np.genfromtxt('data.txt', delimiter=',')
-
-dt = 0.0001
-
-main(dt)
-            
+    main(sim_dt, calc_len, calc_dt, scale)

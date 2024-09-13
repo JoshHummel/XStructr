@@ -5,7 +5,6 @@ Created on Tue May 14 21:51:36 2024
 @author: Josh
 """
 
-import pygame
 import numpy as np
 
 ELECTRON_MASS = 9.1093837015e-31
@@ -45,7 +44,7 @@ class Vector:
                 self.phi = np.pi/2
             
             try:        
-                self.theta = np.arctan(self.z/np.sqrt(self.x**2+self.y**2))
+                self.theta = np.arctan(self.z/(np.sqrt(self.x**2+self.y**2)))
             except ZeroDivisionError:
                 self.theta = np.pi/2
         
@@ -136,7 +135,7 @@ class Particle:
     
     particles = []
     
-    def __init__(self, mass, radius, charge, pos, vel, acc):
+    def __init__(self, mass, radius, charge, pos=Vector(0,0,0), vel=Vector(0,0,0), acc=Vector(0,0,0)):
         self.mass = mass
         self.radius = radius
         self.pos = pos
