@@ -24,69 +24,70 @@ class Vector:
     
     def __init__(self, x=None, y=None, z=None, r=None, phi=None, theta=None):
         
+        
+        
         if x is None and y is None and z is None:
             self.phi = phi
             self.theta = theta
             
-            self.x = r * np.cos(phi)
-            self.y = r * np.sin(phi)
-            self.z = r * np.sin(theta)
+            self.v = np.array([r * np.cos(phi), r * np.sin(phi), r * np.sin(theta)])
         else:
-            self.x = x
-            self.y = y
-            self.z = z
+            self.v = np.array([x, y, z])
         
             #theta is angle in (x^2-y^2)-z plane (radians)
             #phi is angle in x-y plane (radians)
-            try:
-                self.phi = np.arctan(self.y/self.x)
-            except ZeroDivisionError:
+            if (self.v[0] == 0):
                 self.phi = np.pi/2
-            
-            try:        
-                self.theta = np.arctan(self.z/(np.sqrt(self.x**2+self.y**2)))
-            except ZeroDivisionError:
+            else:
+                self.phi = np.arctan(self.v[1]/self.v[0])
+                
+            if (self.v[0] == 0 and self.v[1] == 0):
                 self.theta = np.pi/2
+            else:
+                self.theta = np.arctan(self.v[2]/(np.sqrt(self.v[0]**2+self.v[1]**2)))
         
-            if self.x < 0:
-                if self.y < 0:
+            if self.v[0] < 0:
+                if self.v[1] < 0:
                     self.phi = -np.pi + self.phi
                 else:
                     self.phi = np.pi + self.phi
             
-            if self.z < 0:
-                if self.y < 0:
+            if self.v[2] < 0:
+                if self.v[1] < 0:
                     self.theta += np.pi
                 else:
                     self.theta = np.pi - self.theta
-            elif self.y < 0:
+            elif self.v[1] < 0:
                 self.theta = (2*np.pi) - self.theta
+                
+    def get_vec(self):
+        return self.v
         
         
     def __add__(self, other):
-        x = self.x + other.x
-        y = self.y + other.y
-        z = self.z + other.z
+        x = self.v[0] + other.v[0]
+        y = self.v[1] + other.v[1]
+        z = self.v[2] + other.v[2]
         
         return Vector(x, y, z)
     
     def __sub__(self, other):
-        x = self.x - other.x
-        y = self.y - other.y
-        z = self.z - other.z
+        x = self.v[0] - other.v[0]
+        y = self.v[1] - other.v[1]
+        z = self.v[2] - other.v[2]
         
         return Vector(x, y, z)
     
     def __mul__(self, other):
         if type(other) is Vector:
-            x = self.x * other.x
-            y = self.y * other.y
-            z = self.z * other.z
+            x = self.v[0] * other.v[0]
+            y = self.v[1] * other.v[1]
+            z = self.v[2] * other.v[2]
             
         elif type(other) is int or type(other) is float:
-            x = self.x * other
-            y = self.y * other
-            z = self.z * other
+            x = self.v[0] * other
+            y = self.v[1] * other
+            z = self.v[2] * other
         else:
             return None
             
@@ -94,14 +95,14 @@ class Vector:
         
     def __truediv__(self, other):
         if type(other) is Vector:
-            x = self.x / other.x
-            y = self.y / other.y
-            z = self.z / other.z
+            x = self.v[0] / other.v[0]
+            y = self.v[1] / other.v[1]
+            z = self.v[2] / other.v[2]
             
         elif type(other) is int or type(other) is float:
-            x = self.x / other
-            y = self.y / other
-            z = self.z / other
+            x = self.v[0] / other
+            y = self.v[1] / other
+            z = self.v[2] / other
         else:
             return None
             
@@ -109,7 +110,7 @@ class Vector:
     
     def __eq__(self, other):
         if type(other) is Vector:
-            if self.x == other.x and self.y == other.y and self.z == other.z:
+            if self.v[0] == other.v[0] and self.v[1] == other.v[1] and self.v[2] == other.v[2]:
                 return True
             else:
                 return False
@@ -117,18 +118,16 @@ class Vector:
             return False
         
     def magnitude(self):
-        return np.sqrt(self.x**2 + self.y**2 + self.z**2)
+        return np.linalg.norm(self.get_vec())
     
     def cross(self, other):
         if other.isinstance(Vector):
-            x = (self.y * other.z) - (self.z * other.y)
-            y = (self.z * other.x) - (self.x * other.z)
-            z = (self.x * other.y) - (self.y * other.x)
+            c = np.cross(self.get_vec(), other.get_vec())
             
-            return Vector(x, y, z)
+            return Vector(c[0], c[1], c[2])
         
     def __str__(self):
-        return f"{self.x},{self.y},{self.z}"
+        return f"{self.v[0]}, {self.v[1]}, {self.v[2]}"
 
 
 class Particle:
@@ -146,17 +145,10 @@ class Particle:
         Particle.particles.append(self)
         
     def distanceTo(self, other):
-        return np.sqrt((self.pos.x - other.pos.x)**2 + 
-                         (self.pos.y - other.pos.y)**2 + 
-                         (self.pos.z - other.pos.z)**2)
+        return (self.pos - other.pos).magnitude()
     
-    def vectorDist(self, other):
-        
-        x = self.pos.x - other.pos.x
-        y = self.pos.y - other.pos.y
-        z = self.pos.z - other.pos.z
-        
-        return Vector(x, y, z)    
+    def vectorDist(self, other):        
+        return self.pos - other.pos
     
     
 class Atom(Particle):

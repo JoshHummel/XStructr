@@ -8,9 +8,9 @@ Created on Wed May 22 15:05:49 2024
 import numpy as np
 import pygame
 
-from atomic_physics import Vector
-from atomic_physics import Particle
-from atomic_physics import Atom
+from classes import Vector
+from classes import Particle
+from classes import Atom
 
 class ElectronConfig:
     
@@ -137,7 +137,7 @@ class Orbital:
 
 
 
-if __name__ == '__main__':
+def orbital_sim(Z, n, l, ml, scale):
     #config = ElectronConfig(9)
     
     pygame.init()
@@ -150,17 +150,51 @@ if __name__ == '__main__':
     
     screen.fill('white')
     
-    one_s = Orbital(6, 3, 1, 0, 4)
+    orb = Orbital(Z, n, l, ml, Z)
     
     clock = pygame.time.Clock()
     
+    '''
+    pdf = np.ndarray((400,400,400))
+    wf = np.ndarray((400,400,400))
     for x in range(-200, 200):
         for y in range(-200, 200):
-            prob = (one_s.get_wave_func(Vector(x*10e-10,y*10e-10,30e-10)))**2
-            try:
-                color = pygame.Color(255, 0, 0, int((np.log(prob)))+115)
-            except:
-                print(int((np.log(prob))))
+            for z in range(-200, 200):
+                w = (one_s.get_wave_func(Vector(x*10e-12,y*10e-12,z*10e-12)))
+                p = w**2
+                wf[z][y][x] = w
+                if (p > 0):
+                    if (p < 10e400):
+                        pdf[z][y][x] = p
+                    else:
+                        pdf[z][y][x] = 0.0
+                else:
+                    pdf[z][y][x] = 0.0
+    '''
+                
+    pmin = 0
+    pmax = 0
+    for x in range(-400, 400):
+        for y in range(-400, 400):
+            wave = (orb.get_wave_func(Vector(x*10e-12, y*10e-12, 30e-12))) #placeholder z value until I have 3D modeling
+            prob = wave**2
+            if (pmin == 0 or (prob < pmin and prob > 0)):
+                pmin = prob
+            if (pmax == 0 or (prob > pmax and np.log10(prob) < 1000)):
+                pmax = prob
+    
+    print(pmin)
+    print(pmax)
+    
+    for x in range(-400, 400):
+        for y in range(-400, 400):
+            wave = (orb.get_wave_func(Vector(x*10e-12, y*10e-12, 30e-12))) #placeholder z value until I have 3D modeling
+            prob = wave**2
+            alpha = int((255.0/(pmax - pmin)) * (prob - pmin))
+            if wave < 0:
+                color = pygame.Color(255, 0, 0, alpha)
+            else:
+                color = pygame.Color(0, 0, 255, alpha)
             image.set_at((x + offx, offy - y), color)
             
     screen.blit(image, (0,0))

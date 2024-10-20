@@ -23,6 +23,17 @@ Vector vec_add(Vector one, Vector two) {
     return result;
 }
 
+Vector vec_sub(Vector one, Vector two) {
+    Vector result;
+    double xr = one.x - two.x;
+    double yr = one.y - two.y;
+    double zr = one.z - two.z;
+    result.x = xr;
+    result.y = yr;
+    result.z = zr;
+    return result;
+}
+
 Vector vec_mul(Vector one, Vector two) {
     Vector result;
     double xr = one.x * two.x;
@@ -167,8 +178,14 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
         return 1;
     }
 
-    int time = 0;
-    int sim_len = (int)(t / dt);
+    unsigned long int time = 0;
+    unsigned long int sim_len = (unsigned long int)(t / dt);
+    
+    if (log10(sim_len) > 5) {
+        printf("Simulation length too long, keep Sim Length and CDT less than 6 orders of magnitude apart.\n");
+        return 1;
+    }
+
     int write_error;
     Vector netF, rvec, new_acc, new_vel, new_pos;
     double r, radius, sigma, A=0.9999999999999999, rho = 0.0000894873938456;
@@ -179,7 +196,6 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
 
         for (int i = 0; i < arr_len; i++) {
             netF.x = 0.0, netF.y = 0.0, netF.z = 0.0;
-            particles[i].min_e_loc = vec_scale_mul(netF, 0);
             write_error = fprintf(file, "%e,%e,%e,", particles[i].pos.x, particles[i].pos.y, particles[i].pos.z);
             if (write_error < 1) {
                 printf("Write error encountered.\n");
@@ -192,18 +208,8 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
                 }
 
                 r = distanceTo(particles[i], particles[j]);
-
-                // compensate for particle "teleporting" past lowest energy
-                Vector curr_valley = vec_add(particles[j].pos, vec_scale_mul(vec_norm(vectorDist(particles[i], particles[j])), 2 * sigma));
-                particles[i].min_e_loc = vec_scale_div(vec_add(particles[i].min_e_loc, curr_valley), arr_len-1);
-
-                if (fabs(r - (particles[i].radius + particles[j].radius)) <= 5e-11 && r > (particles[i].radius + particles[j].radius)) {
-                    //particles[i].vel = vec_scale_mul(netF, 0);
-                    //particles[j].vel = vec_scale_mul(netF, 0);
-                    continue;
-                }
                 
-                radius = (particles[i].radius + particles[j].radius) / 2;
+                radius = (particles[i].radius + particles[j].radius);
                 sigma = radius * 0.8908987181403393;
 
                 // ionic interactions
@@ -216,38 +222,23 @@ int calculate_forces(char* filename, Particle particles[], int arr_len, double d
 
                 rvec = vectorDist(particles[i], particles[j]);
 
-                Fx = F * cos(get_phi(rvec.x, rvec.y));
-                Fy = F * sin(get_phi(rvec.x, rvec.y));
-                Fz = F * cos(get_theta(rvec.x, rvec.y, rvec.z));
-
-                netF.x += Fx;
-                netF.y += Fy;
-                netF.z += Fz;
+                netF.x += F * cos(get_phi(rvec.x, rvec.y));
+                netF.y += F * sin(get_phi(rvec.x, rvec.y));
+                netF.z += F * cos(get_theta(rvec.x, rvec.y, rvec.z));
 
             }
             particles[i].netf = netF;
         }
 
-        //printf("(%lf, %lf, %lf)\n", avg_lowest_e.x, avg_lowest_e.y, avg_lowest_e.z);
-
         for (int k = 0; k < arr_len; k++) {            
-
+            // Verlet Integration Method
             new_pos = vec_add(vec_add(particles[k].pos, vec_scale_mul(particles[k].vel, dt)), vec_scale_mul(particles[k].acc, dt * dt * 0.5));
             new_acc = vec_scale_div(particles[k].netf, particles[k].mass);
             new_vel = vec_add(particles[k].vel, vec_scale_mul(vec_add(particles[k].acc, new_acc), dt * 0.5));
 
-            // vec_len(vec_abs(vec_add(new_pos, vec_scale_mul(particles[k].pos, -1)))) > vec_len(vec_abs(vec_add(avg_lowest_e, vec_scale_mul(particles[k].pos, -1))))
-
-            if (isClose(particles[k].pos, particles[k].min_e_loc, 5e-11)) {
-                new_pos = particles[k].min_e_loc;
-                new_vel = vec_scale_mul(new_vel, 0);
-                new_acc = vec_scale_mul(new_vel, 0);
-            }
-            
             particles[k].acc = new_acc;
             particles[k].vel = new_vel;
             particles[k].pos = new_pos;
-
         }
 
     write_error = fprintf(file, "\n");
@@ -269,9 +260,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    float dt = atof(argv[1]);
-    float t = atof(argv[2]);
+    float dt = pow(10, atof(argv[1]));
+    float t = pow(10, atof(argv[2]));
     int num_part = atoi(argv[3]);
+    printf("%lf, %lf, %d\n", dt, t, num_part);
 
     Vector pos;
     Vector vel;
